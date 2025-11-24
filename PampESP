@@ -1,11 +1,14 @@
--- LocalScript | ESP Menu (Mobile & PC Draggable) with Improved Open UI Button
+-- LocalScript | ESP Menu with Mobile & PC Draggable + NoClip
 
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
 local localPlayer = Players.LocalPlayer
 local playerGui = localPlayer:WaitForChild("PlayerGui")
-
+local character = localPlayer.Character or localPlayer.CharacterAdded:Wait()
+local humanoidRootPart = character:WaitForChild("HumanoidRootPart")
 local espOn = false
+local noclipOn = false
 
 ----------------------------------------------------------------------
 -- NOTIFICATION
@@ -116,6 +119,29 @@ for _, player in pairs(Players:GetPlayers()) do
 end
 
 ----------------------------------------------------------------------
+-- NOCLIP FUNCTION
+----------------------------------------------------------------------
+
+local function toggleNoclip()
+    noclipOn = not noclipOn
+    if noclipOn then
+        showNotification("NoClip: ON")
+    else
+        showNotification("NoClip: OFF")
+    end
+end
+
+RunService.Stepped:Connect(function()
+    if noclipOn and character then
+        for _, part in pairs(character:GetDescendants()) do
+            if part:IsA("BasePart") and part.CanCollide then
+                part.CanCollide = false
+            end
+        end
+    end
+end)
+
+----------------------------------------------------------------------
 -- GUI CREATION
 ----------------------------------------------------------------------
 
@@ -125,8 +151,8 @@ gui.ResetOnSpawn = false
 gui.Parent = playerGui
 
 local frame = Instance.new("Frame")
-frame.Size = UDim2.new(0, 220, 0, 140)
-frame.Position = UDim2.new(0.5, -110, 0.5, -70)
+frame.Size = UDim2.new(0, 220, 0, 180)
+frame.Position = UDim2.new(0.5, -110, 0.5, -90)
 frame.BackgroundColor3 = Color3.fromRGB(30,30,30)
 frame.BorderSizePixel = 0
 frame.Visible = false
@@ -181,7 +207,8 @@ local function createButton(text,posY,color)
 end
 
 local onBtn = createButton("Turn ON ESP", 50, Color3.fromRGB(0,170,255))
-local offBtn = createButton("Turn OFF ESP", 95, Color3.fromRGB(180,0,50))
+local offBtn = createButton("Turn OFF ESP", 90, Color3.fromRGB(180,0,50))
+local noclipBtn = createButton("Toggle NoClip", 130, Color3.fromRGB(255, 170, 0))
 
 onBtn.MouseButton1Click:Connect(function()
     espOn = true
@@ -193,17 +220,19 @@ offBtn.MouseButton1Click:Connect(function()
     applyESP()
 end)
 
+noclipBtn.MouseButton1Click:Connect(toggleNoclip)
+
 ----------------------------------------------------------------------
 -- OPEN/CLOSE ANIMATIONS
 ----------------------------------------------------------------------
 
 local function openMenu()
     frame.Visible = true
-    frame.Position = UDim2.new(0.5,-110,0.5,-90)
+    frame.Position = UDim2.new(0.5,-110,0.5,-110)
     frame.BackgroundTransparency = 1
     for i=1,10 do
         frame.BackgroundTransparency = 1-i*0.1
-        frame.Position = frame.Position:Lerp(UDim2.new(0.5,-110,0.5,-70),0.2)
+        frame.Position = frame.Position:Lerp(UDim2.new(0.5,-110,0.5,-90),0.2)
         task.wait(0.02)
     end
     frame.BackgroundTransparency = 0
@@ -212,10 +241,13 @@ end
 local function closeMenu()
     for i=1,10 do
         frame.BackgroundTransparency = i*0.1
-        frame.Position = frame.Position:Lerp(UDim2.new(0.5,-110,0.5,-110),0.2)
+        frame.Position = frame.Position:Lerp(UDim2.new(0.5,-110,0.5,-130),0.2)
         task.wait(0.02)
     end
     frame.Visible = false
+    if mobileOpenBtn then
+        mobileOpenBtn.Visible = true
+    end
 end
 
 closeBtn.MouseButton1Click:Connect(closeMenu)
@@ -238,7 +270,7 @@ if not UserInputService.TouchEnabled then
 end
 
 ----------------------------------------------------------------------
--- MOBILE OPEN BUTTON (Improved)
+-- MOBILE OPEN BUTTON
 ----------------------------------------------------------------------
 
 local mobileOpenBtn
@@ -265,7 +297,7 @@ if UserInputService.TouchEnabled then
 
     mobileOpenBtn.MouseButton1Click:Connect(function()
         openMenu()
-        mobileOpenBtn.Visible = false -- Hide button after opening
+        mobileOpenBtn.Visible = false
     end)
 end
 
