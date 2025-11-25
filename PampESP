@@ -1,300 +1,1022 @@
--- LocalScript | Toggleable ESP + Toggleable NoClip + Draggable UI + Animated Menu + Notifications
-
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
-local localPlayer = Players.LocalPlayer
-local playerGui = localPlayer:WaitForChild("PlayerGui")
+local SoundService = game:GetService("SoundService")
+local Lighting = game:GetService("Lighting")
+local Workspace = game:GetService("Workspace")
 
--- STATES
-local espOn = false
-local noclipOn = false
+local player = Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
+local font = Enum.Font.GothamBold 
 
--- NOTIFICATION FUNCTION
-local function showNotification(text)
-    local gui = Instance.new("ScreenGui")
-    gui.Name = "ScriptNotification"
-    gui.ResetOnSpawn = false
-    gui.Parent = playerGui
-
-    local frame = Instance.new("Frame")
-    frame.Size = UDim2.new(0, 220, 0, 50)
-    frame.Position = UDim2.new(1, 250, 1, -80)
-    frame.BackgroundColor3 = Color3.fromRGB(30,30,30)
-    frame.BorderSizePixel = 0
-    frame.Parent = gui
-
-    local corner = Instance.new("UICorner")
-    corner.CornerRadius = UDim.new(0,12)
-    corner.Parent = frame
-
-    local stroke = Instance.new("UIStroke")
-    stroke.Thickness = 2
-    stroke.Color = Color3.fromRGB(0,170,255)
-    stroke.Parent = frame
-
-    local label = Instance.new("TextLabel")
-    label.Size = UDim2.new(1,0,1,0)
-    label.BackgroundTransparency = 1
-    label.Text = text
-    label.TextColor3 = Color3.fromRGB(255,255,255)
-    label.Font = Enum.Font.GothamBold
-    label.TextScaled = true
-    label.Parent = frame
-
-    local targetPos = UDim2.new(1,-240,1,-80)
-    local tween = TweenService:Create(frame,TweenInfo.new(0.5,Enum.EasingStyle.Quad,Enum.EasingDirection.Out),{Position=targetPos})
-    tween:Play()
-
-    task.spawn(function()
-        task.wait(2.5)
-        local tweenOut = TweenService:Create(frame,TweenInfo.new(0.5,Enum.EasingStyle.Quad,Enum.EasingDirection.In),{Position=UDim2.new(1,250,1,-80), BackgroundTransparency=1})
-        tweenOut:Play()
-        tweenOut.Completed:Wait()
-        gui:Destroy()
-    end)
+-- Check for existing UI and destroy it to prevent duplicates
+local scriptName = "DreamGameHitboxUI"
+local existingGui = playerGui:FindFirstChild(scriptName)
+if existingGui then
+	existingGui:Destroy()
 end
 
-showNotification("Script is Running...")
-
--- ESP FUNCTIONS
-local function addESP(character)
-    if not character then return end
-    if character:FindFirstChild("ESPHighlight") then return end
-    local hl = Instance.new("Highlight")
-    hl.Name = "ESPHighlight"
-    hl.Adornee = character
-    hl.FillColor = Color3.fromRGB(0,170,255)
-    hl.FillTransparency = 0.5
-    hl.OutlineColor = Color3.fromRGB(255,255,255)
-    hl.Parent = character
-end
-
-local function removeESP(character)
-    if character then
-        local hl = character:FindFirstChild("ESPHighlight")
-        if hl then hl:Destroy() end
-    end
-end
-
-local function applyESP()
-    for _, player in pairs(Players:GetPlayers()) do
-        if player ~= localPlayer and player.Character then
-            if espOn then
-                addESP(player.Character)
-            else
-                removeESP(player.Character)
-            end
-        end
-    end
-end
-
-Players.PlayerAdded:Connect(function(player)
-    player.CharacterAdded:Connect(function()
-        task.wait(0.1)
-        applyESP()
-    end)
-end)
-
-for _, player in pairs(Players:GetPlayers()) do
-    player.CharacterAdded:Connect(function()
-        task.wait(0.1)
-        applyESP()
-    end)
-end
-
--- NOCLIP SYSTEM (TOGGLEABLE)
-RunService.Stepped:Connect(function()
-    if noclipOn then
-        local character = localPlayer.Character
-        if character then
-            if character:FindFirstChild("Head") then
-                character.Head.CanCollide = false
-            end
-            if character:FindFirstChild("Torso") then
-                character.Torso.CanCollide = false
-            end
-        end
-    end
-end)
-
-local function toggleNoclip()
-    noclipOn = not noclipOn
-    if noclipOn then
-        showNotification("NoClip: ON")
-    else
-        showNotification("NoClip: OFF")
-        local character = localPlayer.Character
-        if character then
-            if character:FindFirstChild("Head") then
-                character.Head.CanCollide = true
-            end
-            if character:FindFirstChild("Torso") then
-                character.Torso.CanCollide = true
-            end
-        end
-    end
-end
-
--- TOGGLE ESP
-local function toggleESP()
-    espOn = not espOn
-    if espOn then
-        showNotification("ESP: ON")
-    else
-        showNotification("ESP: OFF")
-    end
-    applyESP()
-end
-
--- GUI CREATION
 local gui = Instance.new("ScreenGui")
+gui.Name = scriptName
+gui.ResetOnSpawn = false
 gui.Parent = playerGui
 
-local frame = Instance.new("Frame")
-frame.Size = UDim2.new(0,220,0,180)
-frame.Position = UDim2.new(0.5,-110,0.5,-90)
-frame.BackgroundColor3 = Color3.fromRGB(30,30,30)
-frame.Visible = false
-frame.Parent = gui
+-- Play sound after loading
+local loadSound = Instance.new("Sound")
+loadSound.SoundId = "rbxassetid://3270235822"
+loadSound.Parent = SoundService
+
+-- Loading message
+local loadingFrame = Instance.new("Frame")
+loadingFrame.Parent = gui
+loadingFrame.Size = UDim2.new(0, 180, 0, 30)
+loadingFrame.Position = UDim2.new(1, -190, 0, 10)
+loadingFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+loadingFrame.BorderSizePixel = 0
+
+local loadingCorner = Instance.new("UICorner")
+loadingCorner.Parent = loadingFrame
+loadingCorner.CornerRadius = UDim.new(0, 8)
+
+local loadingLabel = Instance.new("TextLabel")
+loadingLabel.Parent = loadingFrame
+loadingLabel.Size = UDim2.new(1, -6, 1, -6)
+loadingLabel.Position = UDim2.new(0, 3, 0, 3)
+loadingLabel.BackgroundTransparency = 1
+loadingLabel.TextColor3 = Color3.fromRGB(0, 255, 128)
+loadingLabel.TextScaled = true
+loadingLabel.Font = font
+loadingLabel.TextStrokeTransparency = 0.2
+loadingLabel.Text = "Loading Script..."
+loadingLabel.TextXAlignment = Enum.TextXAlignment.Right
+loadingLabel.TextYAlignment = Enum.TextYAlignment.Center
+
+delay(2, function()
+	loadingFrame:Destroy()
+	loadSound:Play()
+end)
+
+--- MAIN UI FRAME (300px wide, Left Panel) ---
+local menuFrame = Instance.new("Frame")
+menuFrame.Parent = gui
+menuFrame.Size = UDim2.new(0, 300, 0, 260) 
+menuFrame.Position = UDim2.new(0.5, -310, 0.5, -100) -- Positioned to the left
+menuFrame.BackgroundColor3 = Color3.fromRGB(25,25,25)
+menuFrame.BorderSizePixel = 0
+menuFrame.Visible = false
+
+local menuCorner = Instance.new("UICorner")
+menuCorner.Parent = menuFrame
+menuCorner.CornerRadius = UDim.new(0, 16)
+
+-- Title Label
+local titleLabel = Instance.new("TextLabel")
+titleLabel.Parent = menuFrame
+titleLabel.Size = UDim2.new(0, 200, 0, 50) 
+titleLabel.Position = UDim2.new(0,10,0,10)
+titleLabel.BackgroundTransparency = 1
+titleLabel.Text = "Made by Pampers" 
+titleLabel.TextColor3 = Color3.fromRGB(0, 255, 128)
+titleLabel.TextScaled = true
+titleLabel.Font = font
+
+-- Close button (Main Menu)
+local closeButton = Instance.new("TextButton")
+closeButton.Parent = menuFrame
+closeButton.Size = UDim2.new(0, 35, 0, 35)
+closeButton.Position = UDim2.new(1, -45, 0, 10)
+closeButton.BackgroundColor3 = Color3.fromRGB(255,50,50)
+closeButton.TextColor3 = Color3.fromRGB(255,255,255)
+closeButton.Text = "X"
+closeButton.Font = font
+closeButton.TextScaled = true
+
+local closeCorner = Instance.new("UICorner")
+closeCorner.Parent = closeButton
+closeCorner.CornerRadius = UDim.new(0, 8)
+
+-- FPS Boost button
+local fpsBoostButton = Instance.new("TextButton")
+fpsBoostButton.Parent = menuFrame
+fpsBoostButton.Size = UDim2.new(0, 95, 0, 35)
+fpsBoostButton.Position = UDim2.new(0, 10, 0, 70)
+fpsBoostButton.BackgroundColor3 = Color3.fromRGB(30,30,30)
+fpsBoostButton.TextColor3 = Color3.fromRGB(255,255,255)
+fpsBoostButton.Text = "FPS Boost" 
+fpsBoostButton.Font = font
+fpsBoostButton.TextScaled = true
+
+local boostCorner = Instance.new("UICorner")
+boostCorner.Parent = fpsBoostButton
+boostCorner.CornerRadius = UDim.new(0,12)
+
+-- Show FPS button
+local showFpsButton = Instance.new("TextButton")
+showFpsButton.Parent = menuFrame
+showFpsButton.Size = UDim2.new(0, 40, 0, 35)
+showFpsButton.Position = UDim2.new(0, 110, 0, 70)
+showFpsButton.BackgroundColor3 = Color3.fromRGB(30,30,30)
+showFpsButton.TextColor3 = Color3.fromRGB(255,255,255)
+showFpsButton.Text = "FPS" 
+showFpsButton.Font = font
+showFpsButton.TextScaled = true
+
+local showFpsCorner = Instance.new("UICorner")
+showFpsCorner.Parent = showFpsButton
+showFpsCorner.CornerRadius = UDim.new(0,12)
+
+-- Hitbox Expander button
+local hitboxButton = Instance.new("TextButton")
+hitboxButton.Parent = menuFrame
+hitboxButton.Size = UDim2.new(0, 95, 0, 35)
+hitboxButton.Position = UDim2.new(0, 10, 0, 115)
+hitboxButton.BackgroundColor3 = Color3.fromRGB(30,30,30)
+hitboxButton.TextColor3 = Color3.fromRGB(255,255,255)
+hitboxButton.Text = "Hitbox"
+hitboxButton.Font = font
+hitboxButton.TextScaled = true
+
+local hitboxCorner = Instance.new("UICorner")
+hitboxCorner.Parent = hitboxButton
+hitboxCorner.CornerRadius = UDim.new(0,12)
+
+-- Hitbox Size Input Box
+local sizeInput = Instance.new("TextBox")
+sizeInput.Parent = menuFrame
+sizeInput.Size = UDim2.new(0, 40, 0, 35)
+sizeInput.Position = UDim2.new(0, 110, 0, 115)
+sizeInput.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+sizeInput.TextColor3 = Color3.fromRGB(0, 255, 128)
+sizeInput.Text = "15"
+sizeInput.Font = font
+sizeInput.TextScaled = true
+sizeInput.PlaceholderText = "Size"
+
+local inputCorner = Instance.new("UICorner")
+inputCorner.Parent = sizeInput
+inputCorner.CornerRadius = UDim.new(0,12)
+
+-- Noclip Button
+local noclipButton = Instance.new("TextButton")
+noclipButton.Parent = menuFrame
+noclipButton.Size = UDim2.new(0, 140, 0, 35)
+noclipButton.Position = UDim2.new(0, 10, 0, 160)
+noclipButton.BackgroundColor3 = Color3.fromRGB(30,30,30)
+noclipButton.TextColor3 = Color3.fromRGB(255,255,255)
+noclipButton.Text = "Noclip"
+noclipButton.Font = font
+noclipButton.TextScaled = true
+
+local noclipCorner = Instance.new("UICorner")
+noclipCorner.Parent = noclipButton
+noclipCorner.CornerRadius = UDim.new(0,12)
+
+--- AIMBOT CONTROLS ---
+
+-- Aimbot Toggle Button
+local aimbotButton = Instance.new("TextButton")
+aimbotButton.Parent = menuFrame
+aimbotButton.Size = UDim2.new(0, 95, 0, 35)
+aimbotButton.Position = UDim2.new(0, 10, 0, 205)
+aimbotButton.BackgroundColor3 = Color3.fromRGB(30,30,30)
+aimbotButton.TextColor3 = Color3.fromRGB(255,255,255)
+aimbotButton.Text = "Aimbot"
+aimbotButton.Font = font
+aimbotButton.TextScaled = true
+
+local aimbotCorner = Instance.new("UICorner")
+aimbotCorner.Parent = aimbotButton
+aimbotCorner.CornerRadius = UDim.new(0,12)
+
+-- Aimbot Settings Button
+local aimbotSettingsButton = Instance.new("TextButton")
+aimbotSettingsButton.Parent = menuFrame
+aimbotSettingsButton.Size = UDim2.new(0, 40, 0, 35)
+aimbotSettingsButton.Position = UDim2.new(0, 110, 0, 205)
+aimbotSettingsButton.BackgroundColor3 = Color3.fromRGB(30,30,30)
+aimbotSettingsButton.TextColor3 = Color3.fromRGB(0, 255, 128)
+aimbotSettingsButton.Text = "..." 
+aimbotSettingsButton.Font = font
+aimbotSettingsButton.TextScaled = true
+
+local aimbotSettingsCorner = Instance.new("UICorner")
+aimbotSettingsCorner.Parent = aimbotSettingsButton
+aimbotSettingsCorner.CornerRadius = UDim.new(0,12)
+
+--- END MAIN UI FRAME ---
+
+
+--- ESP UI FRAME (Separate Right Panel) ---
+local espFrame = Instance.new("Frame")
+espFrame.Parent = gui
+espFrame.Size = UDim2.new(0, 250, 0, 120) 
+espFrame.Position = UDim2.new(0.5, 20, 0.5, -100) -- Positioned right of the main menu
+espFrame.BackgroundColor3 = Color3.fromRGB(25,25,25)
+espFrame.BorderSizePixel = 0
+espFrame.Visible = false
+
+local espCorner = Instance.new("UICorner")
+espCorner.Parent = espFrame
+espCorner.CornerRadius = UDim.new(0, 16)
+
+-- ESP Title
+local espTitleLabel = Instance.new("TextLabel")
+espTitleLabel.Parent = espFrame
+espTitleLabel.Size = UDim2.new(0, 200, 0, 30) 
+espTitleLabel.Position = UDim2.new(0, 10, 0, 10)
+espTitleLabel.BackgroundTransparency = 1
+espTitleLabel.Text = "Extra Sensory" 
+espTitleLabel.TextColor3 = Color3.fromRGB(0, 255, 128)
+espTitleLabel.TextScaled = true
+espTitleLabel.Font = font
+
+-- ESP Close Button
+local espCloseButton = Instance.new("TextButton")
+espCloseButton.Parent = espFrame
+espCloseButton.Size = UDim2.new(0, 35, 0, 35)
+espCloseButton.Position = UDim2.new(1, -45, 0, 10)
+espCloseButton.BackgroundColor3 = Color3.fromRGB(255,50,50)
+espCloseButton.TextColor3 = Color3.fromRGB(255,255,255)
+espCloseButton.Text = "X"
+espCloseButton.Font = font
+espCloseButton.TextScaled = true
+
+local espCloseCorner = Instance.new("UICorner")
+espCloseCorner.Parent = espCloseButton
+espCloseCorner.CornerRadius = UDim.new(0, 8)
+
+
+-- ESP Toggle Button 
+local espToggleButton = Instance.new("TextButton")
+espToggleButton.Parent = espFrame 
+espToggleButton.Size = UDim2.new(0, 95, 0, 35)
+espToggleButton.Position = UDim2.new(0, 10, 0, 70) 
+espToggleButton.BackgroundColor3 = Color3.fromRGB(30,30,30)
+espToggleButton.TextColor3 = Color3.fromRGB(255,255,255)
+espToggleButton.Text = "ESP"
+espToggleButton.Font = font
+espToggleButton.TextScaled = true
+
+local espToggleCorner = Instance.new("UICorner")
+espToggleCorner.Parent = espToggleButton
+espToggleCorner.CornerRadius = UDim.new(0,12)
+
+-- ESP Settings Button
+local espSettingsButton = Instance.new("TextButton")
+espSettingsButton.Parent = espFrame 
+espSettingsButton.Size = UDim2.new(0, 40, 0, 35)
+espSettingsButton.Position = UDim2.new(0, 110, 0, 70) 
+espSettingsButton.BackgroundColor3 = Color3.fromRGB(30,30,30)
+espSettingsButton.TextColor3 = Color3.fromRGB(0, 255, 128)
+espSettingsButton.Text = "..." 
+espSettingsButton.Font = font
+espSettingsButton.TextScaled = true
+
+local espSettingsCorner = Instance.new("UICorner")
+espSettingsCorner.Parent = espSettingsButton
+espSettingsCorner.CornerRadius = UDim.new(0,12)
+
+--- END ESP UI FRAME ---
+
+
+-- FPS display (Independent)
+local fpsFrame = Instance.new("Frame")
+fpsFrame.Parent = gui
+fpsFrame.Size = UDim2.new(0, 100, 0, 30)
+fpsFrame.Position = UDim2.new(0, 10, 0, 10)
+fpsFrame.BackgroundColor3 = Color3.fromRGB(18, 18, 18)
+fpsFrame.BorderSizePixel = 0
+fpsFrame.ClipsDescendants = true
+fpsFrame.Visible = false
 
 local corner = Instance.new("UICorner")
-corner.CornerRadius = UDim.new(0,12)
-corner.Parent = frame
+corner.Parent = fpsFrame
+corner.CornerRadius = UDim.new(0, 8)
 
--- DRAGGING LOGIC
-local dragging = false
-local dragInput, dragStart, startPos
+local fpsLabel = Instance.new("TextLabel")
+fpsLabel.Parent = fpsFrame
+fpsLabel.Size = UDim2.new(1, -6, 1, -6)
+fpsLabel.Position = UDim2.new(0,3,0,3)
+fpsLabel.BackgroundTransparency = 1
+fpsLabel.TextColor3 = Color3.fromRGB(0, 255, 128)
+fpsLabel.TextScaled = true
+fpsLabel.Font = font
+fpsLabel.TextStrokeTransparency = 0.2
+fpsLabel.Text = "FPS: 0"
+fpsLabel.TextXAlignment = Enum.TextXAlignment.Left
+fpsLabel.TextYAlignment = Enum.TextYAlignment.Top
 
-local function update(input)
-    local delta = input.Position - dragStart
-    frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
-end
 
-frame.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-        dragging = true
-        dragStart = input.Position
-        startPos = frame.Position
-        input.Changed:Connect(function()
-            if input.UserInputState == Enum.UserInputState.End then
-                dragging = false
-            end
-        end)
+--- AIMBOT SETTINGS FRAME (Floating Pop-up) ---
+
+local aimbotSettingsFrame = Instance.new("Frame")
+aimbotSettingsFrame.Parent = gui
+aimbotSettingsFrame.Size = UDim2.new(0, 250, 0, 230) 
+aimbotSettingsFrame.Position = UDim2.new(0.5, -125, 0.5, -75) 
+aimbotSettingsFrame.BackgroundColor3 = Color3.fromRGB(35,35,35)
+aimbotSettingsFrame.BorderSizePixel = 0
+aimbotSettingsFrame.Visible = false
+
+local settingsCorner = Instance.new("UICorner")
+settingsCorner.Parent = aimbotSettingsFrame
+settingsCorner.CornerRadius = UDim.new(0, 16)
+
+local settingsTitle = Instance.new("TextLabel")
+settingsTitle.Parent = aimbotSettingsFrame
+settingsTitle.Size = UDim2.new(0, 200, 0, 30) 
+settingsTitle.Position = UDim2.new(0,0,0,5)
+settingsTitle.BackgroundTransparency = 1
+settingsTitle.Text = "Aimbot Settings"
+settingsTitle.TextColor3 = Color3.fromRGB(0, 255, 128)
+settingsTitle.Font = font
+settingsTitle.TextScaled = true
+
+-- Settings Close Button
+local closeAimbotSettingsButton = Instance.new("TextButton")
+closeAimbotSettingsButton.Parent = aimbotSettingsFrame
+closeAimbotSettingsButton.Size = UDim2.new(0, 25, 0, 25)
+closeAimbotSettingsButton.Position = UDim2.new(1, -30, 0, 5)
+closeAimbotSettingsButton.BackgroundColor3 = Color3.fromRGB(255,50,50)
+closeAimbotSettingsButton.TextColor3 = Color3.fromRGB(255,255,255)
+closeAimbotSettingsButton.Text = "X"
+closeAimbotSettingsButton.Font = font
+closeAimbotSettingsButton.TextScaled = true
+
+local closeSettingsCorner = Instance.new("UICorner")
+closeSettingsCorner.Parent = closeAimbotSettingsButton
+closeSettingsCorner.CornerRadius = UDim.new(0, 8)
+
+-- Team Check Button
+local teamCheckButton = Instance.new("TextButton")
+teamCheckButton.Parent = aimbotSettingsFrame
+teamCheckButton.Size = UDim2.new(1, -20, 0, 35)
+teamCheckButton.Position = UDim2.new(0, 10, 0, 50)
+teamCheckButton.BackgroundColor3 = Color3.fromRGB(0, 150, 0)
+teamCheckButton.TextColor3 = Color3.fromRGB(255,255,255)
+teamCheckButton.Text = "Team Check: ON"
+teamCheckButton.Font = font
+teamCheckButton.TextScaled = true
+
+local teamCheckCorner = Instance.new("UICorner")
+teamCheckCorner.Parent = teamCheckButton
+teamCheckCorner.CornerRadius = UDim.new(0,12)
+
+-- Wall Check Button
+local wallCheckButton = Instance.new("TextButton")
+wallCheckButton.Parent = aimbotSettingsFrame
+wallCheckButton.Size = UDim2.new(1, -20, 0, 35)
+wallCheckButton.Position = UDim2.new(0, 10, 0, 95) 
+wallCheckButton.BackgroundColor3 = Color3.fromRGB(0, 150, 0)
+wallCheckButton.TextColor3 = Color3.fromRGB(255,255,255)
+wallCheckButton.Text = "Wall Check: ON"
+wallCheckButton.Font = font
+wallCheckButton.TextScaled = true
+
+local wallCheckCorner = Instance.new("UICorner")
+wallCheckCorner.Parent = wallCheckButton
+wallCheckCorner.CornerRadius = UDim.new(0,12)
+
+-- Kill Check Button
+local killCheckButton = Instance.new("TextButton")
+killCheckButton.Parent = aimbotSettingsFrame
+killCheckButton.Size = UDim2.new(1, -20, 0, 35)
+killCheckButton.Position = UDim2.new(0, 10, 0, 140) 
+killCheckButton.BackgroundColor3 = Color3.fromRGB(0, 150, 0)
+killCheckButton.TextColor3 = Color3.fromRGB(255,255,255)
+killCheckButton.Text = "Kill Check: ON"
+killCheckButton.Font = font
+killCheckButton.TextScaled = true
+
+local killCheckCorner = Instance.new("UICorner")
+killCheckCorner.Parent = killCheckButton
+killCheckCorner.CornerRadius = UDim.new(0,12)
+
+--- END AIMBOT SETTINGS FRAME ---
+
+
+--- ESP SETTINGS FRAME (Floating Pop-up) ---
+
+local espSettingsFrame = Instance.new("Frame")
+espSettingsFrame.Parent = gui
+espSettingsFrame.Size = UDim2.new(0, 250, 0, 260) 
+espSettingsFrame.Position = UDim2.new(0.5, -125, 0.5, -130) 
+espSettingsFrame.BackgroundColor3 = Color3.fromRGB(35,35,35)
+espSettingsFrame.BorderSizePixel = 0
+espSettingsFrame.Visible = false
+
+local espSettingsFrameCorner = Instance.new("UICorner")
+espSettingsFrameCorner.Parent = espSettingsFrame
+espSettingsFrameCorner.CornerRadius = UDim.new(0, 16)
+
+local espSettingsTitle = Instance.new("TextLabel")
+espSettingsTitle.Parent = espSettingsFrame
+espSettingsTitle.Size = UDim2.new(0, 200, 0, 30) 
+espSettingsTitle.Position = UDim2.new(0,0,0,5)
+espSettingsTitle.BackgroundTransparency = 1
+espSettingsTitle.Text = "ESP Settings"
+espSettingsTitle.TextColor3 = Color3.fromRGB(0, 255, 128)
+espSettingsTitle.Font = font
+espSettingsTitle.TextScaled = true
+
+-- Settings Close Button
+local closeEspSettingsButton = Instance.new("TextButton")
+closeEspSettingsButton.Parent = espSettingsFrame
+closeEspSettingsButton.Size = UDim2.new(0, 25, 0, 25)
+closeEspSettingsButton.Position = UDim2.new(1, -30, 0, 5)
+closeEspSettingsButton.BackgroundColor3 = Color3.fromRGB(255,50,50)
+closeEspSettingsButton.TextColor3 = Color3.fromRGB(255,255,255)
+closeEspSettingsButton.Text = "X"
+closeEspSettingsButton.Font = font
+closeEspSettingsButton.TextScaled = true
+
+local closeEspSettingsCorner = Instance.new("UICorner")
+closeEspSettingsCorner.Parent = closeEspSettingsButton
+closeEspSettingsCorner.CornerRadius = UDim.new(0, 8)
+
+-- 1. Box ESP Button
+local boxEspButton = Instance.new("TextButton")
+boxEspButton.Parent = espSettingsFrame
+boxEspButton.Size = UDim2.new(1, -20, 0, 35)
+boxEspButton.Position = UDim2.new(0, 10, 0, 50)
+boxEspButton.BackgroundColor3 = Color3.fromRGB(0, 150, 0)
+boxEspButton.TextColor3 = Color3.fromRGB(255,255,255)
+boxEspButton.Text = "Box ESP: ON"
+boxEspButton.Font = font
+boxEspButton.TextScaled = true
+
+local boxEspCorner = Instance.new("UICorner")
+boxEspCorner.Parent = boxEspButton
+boxEspCorner.CornerRadius = UDim.new(0,12)
+
+-- 2. Name ESP Button
+local nameEspButton = Instance.new("TextButton")
+nameEspButton.Parent = espSettingsFrame
+nameEspButton.Size = UDim2.new(1, -20, 0, 35)
+nameEspButton.Position = UDim2.new(0, 10, 0, 95)
+nameEspButton.BackgroundColor3 = Color3.fromRGB(0, 150, 0)
+nameEspButton.TextColor3 = Color3.fromRGB(255,255,255)
+nameEspButton.Text = "Name ESP: ON"
+nameEspButton.Font = font
+nameEspButton.TextScaled = true
+
+local nameEspCorner = Instance.new("UICorner")
+nameEspCorner.Parent = nameEspButton
+nameEspCorner.CornerRadius = UDim.new(0,12)
+
+-- 3. Tracer ESP Button
+local tracerEspButton = Instance.new("TextButton")
+tracerEspButton.Parent = espSettingsFrame
+tracerEspButton.Size = UDim2.new(1, -20, 0, 35)
+tracerEspButton.Position = UDim2.new(0, 10, 0, 140)
+tracerEspButton.BackgroundColor3 = Color3.fromRGB(150, 0, 0) 
+tracerEspButton.TextColor3 = Color3.fromRGB(255,255,255)
+tracerEspButton.Text = "Tracer ESP: OFF"
+tracerEspButton.Font = font
+tracerEspButton.TextScaled = true
+
+local tracerEspCorner = Instance.new("UICorner")
+tracerEspCorner.Parent = tracerEspButton
+tracerEspCorner.CornerRadius = UDim.new(0,12)
+
+-- 4. Max Distance Input
+local maxDistanceInput = Instance.new("TextBox")
+maxDistanceInput.Parent = espSettingsFrame
+maxDistanceInput.Size = UDim2.new(1, -20, 0, 35)
+maxDistanceInput.Position = UDim2.new(0, 10, 0, 185)
+maxDistanceInput.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+maxDistanceInput.TextColor3 = Color3.fromRGB(0, 255, 128)
+maxDistanceInput.Text = "500"
+maxDistanceInput.Font = font
+maxDistanceInput.TextScaled = true
+maxDistanceInput.PlaceholderText = "Max Distance"
+
+local maxDistanceCorner = Instance.new("UICorner")
+maxDistanceCorner.Parent = maxDistanceInput
+maxDistanceCorner.CornerRadius = UDim.new(0,12)
+
+--- END ESP SETTINGS FRAME ---
+
+
+-- Variables (Unchanged)
+local showFPS_Boost = false
+local showFPS_Display = false
+local lastTime = tick()
+local hitboxExpanded = false
+local currentHitboxSize = 15
+local noclip = false
+local aimbotEnabled = false
+local teamCheck = true 
+local wallCheck = true 
+local killCheck = true 
+local originalLightingSettings = nil
+local espEnabled = false
+local boxEsp = true
+local nameEsp = true
+local tracerEsp = false
+local maxEspDistance = 500 
+local activeEspGuis = {}
+
+-- Function to clean up active ESP GUI elements (Unchanged)
+local function cleanupEspGuis()
+    for _, guiObj in pairs(activeEspGuis) do
+        if guiObj.Parent == gui then
+            guiObj:Destroy()
+        end
     end
-end)
+    activeEspGuis = {} 
+end
 
-frame.InputChanged:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
-        dragInput = input
+-- Function to find the closest viable target (Unchanged)
+local function findClosestViableTarget()
+    local bestTargetHRP = nil
+    local shortestDistance = math.huge
+    local camera = Workspace.CurrentCamera
+    local cameraCFrame = camera.CFrame
+    
+    if not player.Character or not player.Character:FindFirstChild("HumanoidRootPart") then
+        return nil
     end
-end)
 
-UserInputService.InputChanged:Connect(function(input)
-    if input == dragInput and dragging then
-        update(input)
-    end
-end)
+    for _, targetPlayer in pairs(Players:GetPlayers()) do
+        if targetPlayer ~= player and targetPlayer.Character then
+            local character = targetPlayer.Character
+            local humanoid = character:FindFirstChildOfClass("Humanoid")
+            local targetHRP = character:FindFirstChild("HumanoidRootPart")
+            
+            if humanoid and targetHRP then
+                
+                -- 1. Aim FOV Check 
+                local vectorToTarget = (targetHRP.Position - cameraCFrame.Position).Unit
+                local dotProduct = vectorToTarget:Dot(cameraCFrame.LookVector)
+                
+                if dotProduct < 0.95 then 
+                    continue 
+                end
 
--- TITLE
-local title = Instance.new("TextLabel")
-title.Size = UDim2.new(1,-40,0,30)
-title.Position = UDim2.new(0,10,0,0)
-title.Text = "ESP Menu"
-title.Font = Enum.Font.GothamBold
-title.TextSize = 20
-title.TextColor3 = Color3.fromRGB(255,255,255)
-title.BackgroundTransparency = 1
-title.TextXAlignment = Enum.TextXAlignment.Left
-title.Parent = frame
+                -- 2. Team Check 
+                if teamCheck and player.Team and targetPlayer.Team and targetPlayer.Team == player.Team then
+                    continue 
+                end
 
-local closeBtn = Instance.new("TextButton")
-closeBtn.Size = UDim2.new(0,25,0,25)
-closeBtn.Position = UDim2.new(1,-30,0,5)
-closeBtn.Text = "X"
-closeBtn.Font = Enum.Font.GothamBold
-closeBtn.TextSize = 20
-closeBtn.TextColor3 = Color3.fromRGB(255,255,255)
-closeBtn.BackgroundColor3 = Color3.fromRGB(180,50,50)
-closeBtn.BorderSizePixel = 0
-closeBtn.Parent = frame
+                -- 3. Kill Check (Skip dead targets)
+                if killCheck and humanoid.Health <= 0 then
+                    continue
+                end
+                
+                -- 4. Wall Check / Line of Sight Check 
+                if wallCheck then
+                    local originPart = player.Character:FindFirstChild("Head") or player.Character:FindFirstChild("HumanoidRootPart")
+                    
+                    if originPart then
+                        local wallCheckParams = RaycastParams.new()
+                        wallCheckParams.FilterDescendantsInstances = {player.Character, targetPlayer.Character}
+                        wallCheckParams.FilterType = Enum.RaycastFilterType.Exclude
 
--- BUTTON CREATION FUNCTION
-local function createButton(text,posY,color,callback)
-    local btn = Instance.new("TextButton")
-    btn.Size = UDim2.new(0,180,0,30)
-    btn.Position = UDim2.new(0.5,-90,0,posY)
-    btn.Text = text
-    btn.Font = Enum.Font.Gotham
-    btn.TextSize = 18
-    btn.TextColor3 = Color3.fromRGB(255,255,255)
-    btn.BackgroundColor3 = color
-    btn.BorderSizePixel = 0
-    btn.Parent = frame
+                        local startPos = originPart.Position
+                        local directionToTarget = targetHRP.Position - startPos
+                        
+                        local wallResult = Workspace:Raycast(startPos, directionToTarget, wallCheckParams)
 
-    local corner = Instance.new("UICorner")
-    corner.CornerRadius = UDim.new(0,8)
-    corner.Parent = btn
+                        if wallResult then
+                            continue 
+                        end
+                    end
+                end
 
-    btn.MouseButton1Click:Connect(callback)
-    return btn
-end
-
-createButton("Toggle ESP",40,Color3.fromRGB(0,170,255),toggleESP)
-createButton("Toggle NoClip",80,Color3.fromRGB(255,170,0),toggleNoclip)
-
--- OPEN/CLOSE ANIMATIONS
-local function openMenu()
-    frame.Visible = true
-    frame.Position = UDim2.new(0.5,-110,0.5,-130)
-    TweenService:Create(frame,TweenInfo.new(0.3,Enum.EasingStyle.Quad,Enum.EasingDirection.Out),{Position=UDim2.new(0.5,-110,0.5,-90)}):Play()
-end
-
-local function closeMenu()
-    local tween = TweenService:Create(frame,TweenInfo.new(0.3,Enum.EasingStyle.Quad,Enum.EasingDirection.In),{Position=UDim2.new(0.5,-110,0.5,-130)})
-    tween:Play()
-    tween.Completed:Connect(function()
-        frame.Visible = false
-        -- DO NOT HIDE the mobile button. It stays always visible
-    end)
-end
-
-closeBtn.MouseButton1Click:Connect(closeMenu)
-
--- MOBILE OPEN BUTTON (always visible)
-local mobileOpenBtn
-if UserInputService.TouchEnabled then
-    mobileOpenBtn = Instance.new("TextButton")
-    mobileOpenBtn.Size = UDim2.new(0,140,0,45)
-    mobileOpenBtn.Position = UDim2.new(0.5,-70,1,-70)
-    mobileOpenBtn.Text = "Open UI"
-    mobileOpenBtn.Font = Enum.Font.GothamBold
-    mobileOpenBtn.TextSize = 22
-    mobileOpenBtn.BackgroundColor3 = Color3.fromRGB(0,170,255)
-    mobileOpenBtn.TextColor3 = Color3.fromRGB(255,255,255)
-    mobileOpenBtn.BorderSizePixel = 0
-    mobileOpenBtn.Parent = gui
-
-    local corner = Instance.new("UICorner")
-    corner.CornerRadius = UDim.new(0,15)
-    corner.Parent = mobileOpenBtn
-
-    mobileOpenBtn.MouseButton1Click:Connect(function()
-        openMenu()
-    end)
-end
-
--- PC RightShift Toggle
-if not UserInputService.TouchEnabled then
-    UserInputService.InputBegan:Connect(function(input,gp)
-        if gp then return end
-        if input.KeyCode == Enum.KeyCode.RightShift then
-            if frame.Visible then
-                closeMenu()
-            else
-                openMenu()
+                -- 5. Select closest target 
+                local distance = (targetHRP.Position - cameraCFrame.Position).Magnitude
+                if distance < shortestDistance then
+                    shortestDistance = distance
+                    bestTargetHRP = targetHRP
+                end
             end
         end
-    end)
+    end
+    
+    return bestTargetHRP
 end
+
+-- Function to apply/remove FPS Boost graphics changes (Unchanged)
+local function applyFPSBoost(enable)
+    if enable then
+        originalLightingSettings = {
+            GlobalShadows = Lighting.GlobalShadows,
+            Technology = Lighting.Technology,
+            FogEnd = Lighting.FogEnd
+        }
+        Lighting.GlobalShadows = false
+        Lighting.Technology = Enum.Technology.Compatibility
+        Lighting.FogEnd = 100000 
+    else
+        if originalLightingSettings then
+            Lighting.GlobalShadows = originalLightingSettings.GlobalShadows
+            Lighting.Technology = originalLightingSettings.Technology
+            Lighting.FogEnd = originalLightingSettings.FogEnd
+        else
+            Lighting.GlobalShadows = true
+            Lighting.Technology = Enum.Technology.ShadowMap
+        end
+    end
+end
+
+-- [ ... All button logic remains the same ... ]
+
+-- Input Box Logic
+sizeInput.FocusLost:Connect(function(enterPressed)
+	local num = tonumber(sizeInput.Text)
+	if num and num > 0 then 
+		currentHitboxSize = num
+	else
+		sizeInput.Text = tostring(currentHitboxSize)
+	end
+end)
+
+-- Hitbox Button Logic
+hitboxButton.MouseButton1Click:Connect(function()
+	hitboxExpanded = not hitboxExpanded
+	
+	if hitboxExpanded then
+		hitboxButton.Text = "ON"
+		hitboxButton.BackgroundColor3 = Color3.fromRGB(0, 150, 0)
+	else
+		hitboxButton.Text = "Hitbox"
+		hitboxButton.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+		
+		-- Reset
+		for _, v in pairs(Players:GetPlayers()) do
+			if v ~= player and v.Character and v.Character:FindFirstChild("HumanoidRootPart") then
+				local hrp = v.Character.HumanoidRootPart
+				hrp.Size = Vector3.new(2, 2, 1)
+				hrp.Transparency = 1
+				hrp.CanCollide = true
+				hrp.CanQuery = true
+				hrp.CanTouch = true
+			end
+		end
+	end
+end)
+
+-- Noclip Button Logic
+noclipButton.MouseButton1Click:Connect(function()
+	noclip = not noclip
+	if noclip then
+		noclipButton.Text = "Noclip: ON"
+		noclipButton.BackgroundColor3 = Color3.fromRGB(0, 150, 0)
+	else
+		noclipButton.Text = "Noclip"
+		noclipButton.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+	end
+end)
+
+-- AIMBOT SETTINGS BUTTON LOGIC
+aimbotSettingsButton.MouseButton1Click:Connect(function()
+    aimbotSettingsFrame.Visible = true
+end)
+
+-- CLOSE AIMBOT SETTINGS BUTTON LOGIC
+closeAimbotSettingsButton.MouseButton1Click:Connect(function()
+    aimbotSettingsFrame.Visible = false
+end)
+
+-- TEAM CHECK BUTTON LOGIC
+teamCheckButton.MouseButton1Click:Connect(function()
+    teamCheck = not teamCheck
+    if teamCheck then
+        teamCheckButton.Text = "Team Check: ON"
+        teamCheckButton.BackgroundColor3 = Color3.fromRGB(0, 150, 0)
+    else
+        teamCheckButton.Text = "Team Check: OFF"
+        teamCheckButton.BackgroundColor3 = Color3.fromRGB(150, 0, 0)
+    end
+end)
+
+-- WALL CHECK BUTTON LOGIC
+wallCheckButton.MouseButton1Click:Connect(function()
+    wallCheck = not wallCheck
+    if wallCheck then
+        wallCheckButton.Text = "Wall Check: ON"
+        wallCheckButton.BackgroundColor3 = Color3.fromRGB(0, 150, 0)
+    else
+        wallCheckButton.Text = "Wall Check: OFF"
+        wallCheckButton.BackgroundColor3 = Color3.fromRGB(150, 0, 0)
+    end
+end)
+
+-- KILL CHECK BUTTON LOGIC
+killCheckButton.MouseButton1Click:Connect(function()
+    killCheck = not killCheck
+    if killCheck then
+        killCheckButton.Text = "Kill Check: ON"
+        killCheckButton.BackgroundColor3 = Color3.fromRGB(0, 150, 0)
+    else
+        killCheckButton.Text = "Kill Check: OFF"
+        killCheckButton.BackgroundColor3 = Color3.fromRGB(150, 0, 0)
+    end
+end)
+
+-- Aimbot Toggle Button Logic
+aimbotButton.MouseButton1Click:Connect(function()
+	aimbotEnabled = not aimbotEnabled
+	if aimbotEnabled then
+		aimbotButton.Text = "Aimbot: ON (RMB)"
+		aimbotButton.BackgroundColor3 = Color3.fromRGB(0, 150, 0)
+	else
+		aimbotButton.Text = "Aimbot"
+		aimbotButton.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+	end
+end)
+
+-- FPS BOOST Button Logic
+fpsBoostButton.MouseButton1Click:Connect(function()
+	showFPS_Boost = not showFPS_Boost
+    applyFPSBoost(showFPS_Boost)
+	fpsBoostButton.Text = showFPS_Boost and "Boost: ON" or "FPS Boost"
+    fpsBoostButton.BackgroundColor3 = showFPS_Boost and Color3.fromRGB(0, 150, 0) or Color3.fromRGB(30, 30, 30)
+end)
+
+-- SHOW FPS Button Logic
+showFpsButton.MouseButton1Click:Connect(function()
+    showFPS_Display = not showFPS_Display
+    fpsFrame.Visible = showFPS_Display
+    showFpsButton.Text = showFPS_Display and "Hide" or "FPS"
+    showFpsButton.BackgroundColor3 = showFPS_Display and Color3.fromRGB(0, 150, 0) or Color3.fromRGB(30, 30, 30)
+end)
+
+
+-- NEW ESP BUTTON LOGIC
+
+-- ESP Toggle Button Logic
+espToggleButton.MouseButton1Click:Connect(function()
+    espEnabled = not espEnabled
+    if espEnabled then
+        espToggleButton.Text = "ESP: ON"
+        espToggleButton.BackgroundColor3 = Color3.fromRGB(0, 150, 0)
+    else
+        espToggleButton.Text = "ESP"
+        espToggleButton.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+    end
+end)
+
+-- ESP Settings Button Logic
+espSettingsButton.MouseButton1Click:Connect(function()
+    espSettingsFrame.Visible = true
+end)
+
+-- Close ESP Settings Button Logic
+closeEspSettingsButton.MouseButton1Click:Connect(function()
+    espSettingsFrame.Visible = false
+end)
+
+-- Box ESP Button Logic
+boxEspButton.MouseButton1Click:Connect(function()
+    boxEsp = not boxEsp
+    boxEspButton.Text = boxEsp and "Box ESP: ON" or "Box ESP: OFF"
+    boxEspButton.BackgroundColor3 = boxEsp and Color3.fromRGB(0, 150, 0) or Color3.fromRGB(150, 0, 0)
+end)
+
+-- Name ESP Button Logic
+nameEspButton.MouseButton1Click:Connect(function()
+    nameEsp = not nameEsp
+    nameEspButton.Text = nameEsp and "Name ESP: ON" or "Name ESP: OFF"
+    nameEspButton.BackgroundColor3 = nameEsp and Color3.fromRGB(0, 150, 0) or Color3.fromRGB(150, 0, 0)
+end)
+
+-- Tracer ESP Button Logic
+tracerEspButton.MouseButton1Click:Connect(function()
+    tracerEsp = not tracerEsp
+    tracerEspButton.Text = tracerEsp and "Tracer ESP: ON" or "Tracer ESP: OFF"
+    tracerEspButton.BackgroundColor3 = tracerEsp and Color3.fromRGB(0, 150, 0) or Color3.fromRGB(150, 0, 0)
+end)
+
+-- Max Distance Input Logic
+maxDistanceInput.FocusLost:Connect(function(enterPressed)
+	local num = tonumber(maxDistanceInput.Text)
+	if num and num > 0 then 
+		maxEspDistance = num
+	else
+		maxDistanceInput.Text = tostring(maxEspDistance)
+	end
+end)
+
+-- Menu Visibility Logic
+local function toggleMenu(visible)
+	menuFrame.Visible = visible
+    espFrame.Visible = visible -- Toggles both menu frames
+    
+    -- Always close settings frames when main menu is toggled off
+    if not visible then
+        aimbotSettingsFrame.Visible = false
+        espSettingsFrame.Visible = false
+    end
+end
+
+closeButton.MouseButton1Click:Connect(function()
+	toggleMenu(false)
+end)
+
+espCloseButton.MouseButton1Click:Connect(function()
+    espFrame.Visible = false -- Only closes the ESP frame
+end)
+
+-- Keybind Logic (M key to toggle menu)
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+	if gameProcessed then return end 
+    
+	if input.KeyCode == Enum.KeyCode.M then
+		if menuFrame and menuFrame.Parent then
+			toggleMenu(not menuFrame.Visible)
+		end
+	end
+end)
+
+-- Draggable menu setup
+local draggingMenu = false
+local draggingEsp = false
+local dragInput, dragStart, startPos
+
+menuFrame.InputBegan:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1 then
+		draggingMenu = true
+		dragStart = input.Position
+		startPos = menuFrame.Position
+		input.Changed:Connect(function()
+			if input.UserInputState == Enum.UserInputState.End then
+				draggingMenu = false
+			end
+		end)
+	end
+end)
+
+espFrame.InputBegan:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1 then
+		draggingEsp = true
+		dragStart = input.Position
+		startPos = espFrame.Position
+		input.Changed:Connect(function()
+			if input.UserInputState == Enum.UserInputState.End then
+				draggingEsp = false
+			end
+		end)
+	end
+end)
+
+menuFrame.InputChanged:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseMovement then
+		dragInput = input
+	end
+end)
+espFrame.InputChanged:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseMovement then
+		dragInput = input
+	end
+end)
+
+
+-- Main Loop (FPS, Hitbox, Aimbot, ESP, & Drag Logic)
+RunService.RenderStepped:Connect(function()
+    local cam = Workspace.CurrentCamera
+    local char = player.Character
+    local hrp = char and char:FindFirstChild("HumanoidRootPart")
+
+	-- FPS Display Logic
+	if showFPS_Display then
+		local currentTime = tick()
+		local dt = currentTime - lastTime
+		lastTime = currentTime
+		local fps = math.floor(1 / dt + 0.5)
+		if fps > 144 then fps = 144 end
+		fpsLabel.Text = "FPS: "..fps
+	end
+
+    -- Aimbot Logic
+    if aimbotEnabled and UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton2) then
+        local targetHRP = findClosestViableTarget() 
+        
+        if targetHRP and cam then
+            local aimPosition = targetHRP.Position + Vector3.new(0, 0.5, 0)
+            cam.CFrame = CFrame.new(cam.CFrame.Position, aimPosition)
+        end
+    end
+    
+    -- ESP RENDERING LOGIC
+    if espEnabled and hrp then
+        cleanupEspGuis() 
+
+        for _, targetPlayer in pairs(Players:GetPlayers()) do
+            -- Team check is manually handled here since it's a visible feature
+            if teamCheck and targetPlayer.Team and player.Team and targetPlayer.Team == player.Team then
+                continue 
+            end
+
+            if targetPlayer ~= player and targetPlayer.Character then
+                local root = targetPlayer.Character:FindFirstChild("HumanoidRootPart")
+                local head = targetPlayer.Character:FindFirstChild("Head")
+
+                if root and head then
+                    -- 1. Distance Check
+                    local distance = (root.Position - hrp.Position).Magnitude
+                    if distance > maxEspDistance then
+                        continue
+                    end
+                    
+                    -- 2. WorldToScreenPoint to get GUI coordinates
+                    local vector, onScreen = cam:WorldToScreenPoint(root.Position)
+                    if not onScreen or vector.Z < 0 then continue end
+                    
+                    -- Calculate Box size based on distance (closer = bigger)
+                    local boxHeight = math.clamp(1500 / distance, 50, 300) 
+                    local boxWidth = boxHeight / 2.5
+                    local screenPos = Vector2.new(vector.X, vector.Y)
+                    
+                    -- Draw Box ESP
+                    if boxEsp then
+                        local boxFrame = Instance.new("Frame")
+                        boxFrame.Parent = gui
+                        boxFrame.Size = UDim2.new(0, boxWidth, 0, boxHeight)
+                        boxFrame.Position = UDim2.new(0, screenPos.X - boxWidth / 2, 0, screenPos.Y - boxHeight / 2)
+                        boxFrame.BackgroundColor3 = Color3.fromRGB(0, 255, 128)
+                        boxFrame.BorderSizePixel = 1
+                        boxFrame.BackgroundTransparency = 0.9 
+                        boxFrame.BorderColor3 = Color3.fromRGB(0, 255, 128)
+                        table.insert(activeEspGuis, boxFrame)
+                    end
+                    
+                    -- Draw Name/Distance ESP
+                    if nameEsp then
+                        local nameLabel = Instance.new("TextLabel")
+                        nameLabel.Parent = gui
+                        nameLabel.Size = UDim2.new(0, 100, 0, 20)
+                        nameLabel.Position = UDim2.new(0, screenPos.X - 50, 0, screenPos.Y - boxHeight/2 - 20)
+                        nameLabel.BackgroundTransparency = 1
+                        nameLabel.Text = targetPlayer.DisplayName .. " ["..math.floor(distance).."m]"
+                        nameLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+                        nameLabel.Font = font
+                        nameLabel.TextScaled = true
+                        table.insert(activeEspGuis, nameLabel)
+                    end
+                    
+                    -- Draw Tracer ESP (Simplified dot)
+                    if tracerEsp then
+                        local dotFrame = Instance.new("Frame")
+                        dotFrame.Parent = gui
+                        dotFrame.Size = UDim2.new(0, 5, 0, 5)
+                        dotFrame.Position = UDim2.new(0, screenPos.X - 2.5, 0, screenPos.Y - 2.5)
+                        dotFrame.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
+                        dotFrame.BorderSizePixel = 0
+                        table.insert(activeEspGuis, dotFrame)
+                    end
+                end
+            end
+        end
+    else
+        cleanupEspGuis() 
+    end
+
+	-- Hitbox Expander Logic 
+	if hitboxExpanded then
+		for _, v in pairs(Players:GetPlayers()) do
+			if v ~= player and v.Character and v.Character:FindFirstChild("HumanoidRootPart") then
+				local hrp_target = v.Character.HumanoidRootPart
+				hrp_target.Size = Vector3.new(currentHitboxSize, currentHitboxSize, currentHitboxSize) 
+				hrp_target.Transparency = 0.7 
+				hrp_target.CanCollide = false
+				hrp_target.CanQuery = true
+				hrp_target.CanTouch = true
+			end
+		end
+	end
+
+	-- Draggable menu logic
+	if dragInput then
+        if draggingMenu then
+            local delta = dragInput.Position - dragStart
+            local newX = startPos.X.Offset + delta.X
+            local newY = startPos.Y.Offset + delta.Y
+            
+            menuFrame.Position = UDim2.new(startPos.X.Scale, newX, startPos.Y.Scale, newY)
+        end
+        
+        if draggingEsp then
+            local delta = dragInput.Position - dragStart
+            local newX = startPos.X.Offset + delta.X
+            local newY = startPos.Y.Offset + delta.Y
+            
+            espFrame.Position = UDim2.new(startPos.X.Scale, newX, startPos.Y.Scale, newY)
+        end
+	end
+end)
+
+-- Noclip Logic (Uses Stepped for Physics)
+RunService.Stepped:Connect(function()
+	if noclip and player.Character then
+        local human = player.Character:FindFirstChildOfClass("Humanoid")
+        if human then human:ChangeState(Enum.HumanoidStateType.Freefall) end 
+        
+		for _, part in pairs(player.Character:GetDescendants()) do
+			if part:IsA("BasePart") and part.CanCollide == true then
+				part.CanCollide = false
+			end
+		end
+	end
+end)
